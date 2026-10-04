@@ -6,6 +6,7 @@ https://github.com/e-comet/skills
 Public source commit: e6712276c62f2b9457a3b0c009a4fae14a83fe4a
 Plugin release: 2026.9.3
 Copyright e-Comet and its contributors. See LICENSE.
+The logo in assets/logo.png is reused unchanged from that public plugin snapshot.
 
 The local MCP and handoff code are reused rather than weakened or reimplemented.
 No private repository history or credentials are included.

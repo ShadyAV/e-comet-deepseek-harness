@@ -27,6 +27,8 @@ The automated suite covers native account RPC, background OAuth, callback cancel
 
 Release 0.2.0 verification: 52 tests passed; its archive installed through the bundled Desktop CLI into an isolated profile without a version exemption. The browser client ships prebuilt and needs no install-time compilation.
 
+Release 0.2.1 changes presentation and native display metadata only: branded logo/title/description, capability cards and connection badges. The account controller and RPC behavior are unchanged. The actual Desktop rendered the branded installed entry and the new account layout; 53 tests passed, including the real DeepSeek metadata reader.
+
 ## Accepted residual
 
 Cancellation during remote MCP bootstrap after successful OAuth can wait for the SDK's bounded request timeout. The OAuth phase itself is cancellable. Slow-bootstrap cancellation was identified from code; its latency has not been reproduced through the actual Desktop/backend. Keep this as a verification gap rather than claiming instantaneous cancellation at every stage.

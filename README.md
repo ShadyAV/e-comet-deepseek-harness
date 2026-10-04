@@ -17,15 +17,15 @@ Do not use a GitHub `/tree/main/...` link. The root package declares `dsh.bundle
 Alternatively, install the release archive into your selected profile:
 
 ```text
-dsh plugin --profile desktop add ./dsh-e-comet-0.2.0.tgz
+dsh plugin --profile desktop add ./dsh-e-comet-0.2.1.tgz
 ```
 
 Only one copy of this bundle should be enabled in the same profile. After upgrading from 0.1.0, restart DeepSeek once so the new account page is loaded. Subsequent account connections do not require an application restart.
 
 ## Connect your e-Comet account
 
-1. Open **Plugins → Installed → dsh-e-comet**.
-2. In **e-Comet account**, click **Connect e-Comet**.
+1. Open **Plugins → Installed → e-Comet** (package `dsh-e-comet`).
+2. In **Connection**, click **Connect e-Comet**.
 3. Click **Open login page** and sign in with your e-Comet email in the browser. Enter the email code on that page, never in chat.
 4. Return to DeepSeek. The account page updates automatically, and the remote tools connect without restarting the application.
 
