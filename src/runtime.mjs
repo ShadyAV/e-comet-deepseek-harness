@@ -14,21 +14,29 @@ function renderMcp(_args, value) {
 }
 
 /** Owned registrations keep the private handoff inside the actual MCP call body. */
-export async function registerMcpClients(ctx, { adapter, remote, local }) {
-  const clients = [];
-  const registrations = [];
-  const statuses = {};
+export async function registerMcpClients(ctx, { adapter, remote, local, autoConnectRemote = true }) {
+  const connections = new Map();
+  const statuses = { remote: 'disconnected' };
   let disposed = false;
+  let remoteChange = Promise.resolve();
+  async function unmount(kind) {
+    const connection = connections.get(kind);
+    connections.delete(kind);
+    if (connection) {
+      for (const unregister of connection.owned.reverse()) unregister();
+      await connection.client.close().catch(() => {});
+    }
+    statuses[kind] = 'disconnected';
+  }
   const dispose = async () => {
     if (disposed) return;
     disposed = true;
-    for (const unregister of registrations.splice(0).reverse()) unregister();
-    await Promise.allSettled(clients.splice(0).map(client => client.close()));
+    await remoteChange.catch(() => {});
+    await Promise.allSettled([...connections.keys()].map(unmount));
   };
 
   async function mount(kind, namespace, options) {
-    const client = new Client({ name: 'e-comet-deepseek-harness', version: '0.1.0' }, { capabilities: {} });
-    clients.push(client);
+    const client = new Client({ name: 'e-comet-deepseek-harness', version: '0.2.0' }, { capabilities: {} });
     const owned = [];
     try {
       const transport = new StdioClientTransport({ ...options, stderr: 'inherit' });
@@ -57,7 +65,18 @@ export async function registerMcpClients(ctx, { adapter, remote, local }) {
           async execute(args, exec) {
             let result;
             try { result = await client.callTool({ name: tool.name, arguments: args }, undefined, { signal: exec.signal, timeout: 7_200_000, resetTimeoutOnProgress: true }); }
-            catch { throw new Error(`MCP_CALL_FAILED: ${kind} e-Comet connection could not complete this call. Check connection diagnostics before retrying.`); }
+            catch (error) {
+              if (kind === 'remote' && error.code === -32001 && error.data?.code === 'ECOMET_LOGIN_REQUIRED') {
+                if (connections.get(kind)?.client === client) {
+                  connections.delete(kind);
+                  for (const unregister of owned.reverse()) unregister();
+                  statuses[kind] = 'unavailable';
+                  await client.close().catch(() => {});
+                }
+                throw new Error('ECOMET_LOGIN_REQUIRED: Open e-Comet in the app sidebar and reconnect your account.');
+              }
+              throw new Error(`MCP_CALL_FAILED: ${kind} e-Comet connection could not complete this call. Check connection diagnostics before retrying.`);
+            }
             if (result.isError === true) {
               // Remote browser-job failures must not accidentally echo authorization.
               if (kind === 'remote' && tool.name === 'browser_job') throw new Error('BROWSER_JOB_FAILED: The remote service did not grant browser authorization. Check the remote connection and service diagnostics.');
@@ -71,8 +90,14 @@ export async function registerMcpClients(ctx, { adapter, remote, local }) {
         });
         owned.push(ctx.tools.register(definition));
       }
-      registrations.push(...owned);
+      connections.set(kind, { client, owned });
       statuses[kind] = 'connected';
+      client.onclose = () => {
+        if (connections.get(kind)?.client !== client) return;
+        connections.delete(kind);
+        for (const unregister of owned.reverse()) unregister();
+        statuses[kind] = 'unavailable';
+      };
     } catch {
       for (const unregister of owned.reverse()) unregister();
       await client.close().catch(() => {});
@@ -81,6 +106,19 @@ export async function registerMcpClients(ctx, { adapter, remote, local }) {
     }
   }
 
-  await Promise.all([mount('remote', 'e-comet', remote), mount('local', 'e-comet-local', local)]);
-  return { dispose, statuses };
+  function connectRemote() {
+    remoteChange = remoteChange.catch(() => {}).then(async () => {
+      if (disposed) throw new Error('e-Comet integration has stopped.');
+      if (connections.has('remote')) return;
+      await mount('remote', 'e-comet', remote);
+      if (statuses.remote !== 'connected') throw new Error('e-Comet remote MCP is unavailable.');
+    });
+    return remoteChange;
+  }
+  function disconnectRemote() {
+    remoteChange = remoteChange.catch(() => {}).then(() => unmount('remote'));
+    return remoteChange;
+  }
+  await Promise.all([...(autoConnectRemote ? [mount('remote', 'e-comet', remote)] : []), mount('local', 'e-comet-local', local)]);
+  return { dispose, statuses, connectRemote, disconnectRemote };
 }

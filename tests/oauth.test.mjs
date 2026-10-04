@@ -98,3 +98,14 @@ test('OAuth discovery rejects mismatched issuer, cross-origin token endpoints an
   metadata = { issuer: 'https://auth.mcp.e-comet.io/', token_endpoint: 'https://different.invalid/token' };
   await assert.rejects(trusted('https://auth.mcp.e-comet.io/.well-known/oauth-authorization-server'), /endpoint/);
 });
+
+test('callback cancellation rejects its pending code and closes listener', async () => {
+ const callback = await startCallback('cancel');
+ callback.close();
+ await assert.rejects(callback.code, /cancelled/);
+ await assert.rejects(fetch(callback.url));
+});
+test('discovery cannot choose a different authorization issuer',async()=>{
+ const trusted=createTrustedFetch(async()=>Response.json({resource:'https://mcp.e-comet.io/',authorization_servers:['https://attacker.invalid/']}));
+ await assert.rejects(trusted('https://mcp.e-comet.io/.well-known/oauth-protected-resource'),/issuer/);
+});

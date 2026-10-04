@@ -17,27 +17,21 @@ Do not use a GitHub `/tree/main/...` link. The root package declares `dsh.bundle
 Alternatively, install the release archive into your selected profile:
 
 ```text
-dsh plugin --profile desktop add ./dsh-e-comet-0.1.0.tgz
+dsh plugin --profile desktop add ./dsh-e-comet-0.2.0.tgz
 ```
 
-Only one copy of this bundle should be enabled in the same profile. Restart the session after installing or connecting the account.
+Only one copy of this bundle should be enabled in the same profile. After upgrading from 0.1.0, restart DeepSeek once so the new account page is loaded. Subsequent account connections do not require an application restart.
 
 ## Connect your e-Comet account
 
-The first connection requires an explicit browser login with your e-Comet email. From a checkout of this repository:
+1. Open **Plugins → Installed → dsh-e-comet**.
+2. In **e-Comet account**, click **Connect e-Comet**.
+3. Click **Open login page** and sign in with your e-Comet email in the browser. Enter the email code on that page, never in chat.
+4. Return to DeepSeek. The account page updates automatically, and the remote tools connect without restarting the application.
 
-```text
-npm install --ignore-scripts
-npm run connect -- --open
-```
+The card also offers **Cancel login**, **Disconnect e-Comet**, and **Check connection**. Cancelling, declining, or timing out does not silently restart authorization. Local WB/Ozon tools remain independent of remote account login; their connection status does not prove that the browser extension is ready.
 
-Or run the connection helper directly from the GitHub package:
-
-```text
-npx --yes --package=github:ShadyAV/e-comet-deepseek-harness dsh-e-comet-connect --open
-```
-
-The helper prints an authorization URL; if the browser does not open, open that URL yourself. Wait for the terminal to confirm the connection, then restart the DeepSeek session. Do not paste API keys, bearer tokens or browser authorizations into chat. Login credentials stay in your user profile at `.e-comet-deepseek-harness/account/credentials.json`; they are not published or sent to the model. On Windows, POSIX file modes do not enforce ACLs: keep this user-profile directory private to your Windows account.
+Do not paste API keys, bearer tokens or browser authorizations into chat. Login credentials stay in your user profile at `.e-comet-deepseek-harness/account/credentials.json`; they are not published or sent to the model. On Windows, POSIX file modes do not enforce ACLs: keep this user-profile directory private to your Windows account.
 
 If remote login has not completed, local diagnostics remain available. Account connection is verified only after a real remote `info` call succeeds.
 
@@ -52,8 +46,9 @@ Start with a small read-only request, for example: «Получи первую �
 See [COMPATIBILITY.md](COMPATIBILITY.md). This is an experimental package, not a declaration of complete Desktop support.
 
 - Native authorization and denial paths have automated tests, including execution on the published Harness ToolRuntime.
-- The real local MCP starts and answers bridge diagnostics; remote account login remains a human step.
-- A full WB search, Ozon export and XLSX delivery in Desktop have **not** been verified end to end.
+- The native account page and browser login were tested in the real Desktop. Remote tools connected after login without restarting it.
+- A real first-page WB search completed through info, describe_e_comet_tool, browser_job and wb_search_by_query in an existing Desktop session.
+- Ozon export and XLSX delivery in Desktop have **not** been verified end to end.
 - Native feedback submission and optional session transcript collection are currently blocked. The package does not pretend to be Claude/Codex or bypass the consent boundary.
 - Tool results retain their canonical MCP content. Image/resource rendering and returned file links require Desktop acceptance testing.
 - No automatic retry after an uncertain report creation or upload. Completed work must be preserved.
@@ -68,3 +63,5 @@ npm pack
 ```
 
 The adapter and package are maintained here for the pilot. The public e-Comet snapshot is pinned in NOTICE; it is not a copy of private development history. Future distributions can be generated from one canonical repository with host-specific adapters.
+
+The `npm run connect -- --open` helper remains available for developers, but is not the Desktop user's connection procedure.

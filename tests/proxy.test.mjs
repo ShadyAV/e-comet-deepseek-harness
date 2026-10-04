@@ -43,3 +43,20 @@ test('stdio server forwarding preserves schemas, instructions, raw tool results 
 test('unauthorized proxy discovery fails immediately with a supported login action', async () => {
   await assert.rejects(createRemoteProxy({ tokens: async () => undefined }), error => error instanceof LoginRequiredError && /connect/.test(error.message));
 });
+
+test('login expiry crosses the MCP boundary as a safe typed error', async t => {
+ const remote = {
+  getServerCapabilities:()=>({tools:{}}),getInstructions:()=>undefined,close:async()=>{},
+  request:async()=>{throw new LoginRequiredError();},
+ };
+ const {server}=await createRemoteProxy({tokens:async()=>({access_token:'fixture-never-user'})},{client:remote});
+ const [callerTransport,proxyTransport]=InMemoryTransport.createLinkedPair();
+ const caller=new Client({name:'expired-login-fixture',version:'1'});
+ t.after(async()=>{await caller.close();await server.close();});
+ await server.connect(proxyTransport);await caller.connect(callerTransport);
+ await assert.rejects(caller.callTool({name:'fixture',arguments:{}}),error=>{
+  assert.equal(error.code,-32001);assert.deepEqual(error.data,{code:'ECOMET_LOGIN_REQUIRED'});
+  assert.match(error.message,/account|sidebar/i);assert.doesNotMatch(error.message,/terminal|restart|token/i);
+  return true;
+ });
+});

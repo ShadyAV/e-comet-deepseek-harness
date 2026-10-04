@@ -13,14 +13,23 @@ Target: official DeepSeek Harness Desktop 0.2.0-rc.2 on Windows. Published runti
 | Archive installation | dsh plugin add installed the 0.1.0 archive into an isolated profile without a version exemption | Passed |
 | Installed Desktop CLI | Desktop's bundled 0.2.0-rc.2 CLI dump-config includes the installed dsh-e-comet bundle | Passed; not a GUI test |
 | Browser extension | The live bridge reported extensionConnected:true during the read-only smoke check | Observed readiness only |
-| Human account login | Email/browser OAuth completion and subsequent remote info | Not verified |
-| Desktop marketplace calls | WB search, Ozon report, permissions UI and opening the exact returned XLSX | Not verified |
+| Native account page | Actual installed Desktop: Plugins → Installed → dsh-e-comet, account card and separate local/remote states | Passed |
+| Human account login | User completed browser login from the account card; the page became connected and remote info succeeded | Passed without app restart after login |
+| Desktop WB search | Existing session: remote info → describe_e_comet_tool → browser_job → wb_search_by_query; all four tool results successful, first page returned | Passed with actual backend and extension |
+| Private authorization | Native session records show no triggerUrl/trigger_url in model-authored calls for that successful search | Observed |
+| Ozon and XLSX | Ozon report creation/download and opening the exact returned XLSX | Not verified |
 | Feedback | Host-owned consent/transcript attestation not implemented | Explicitly denied |
 | Other hosts | No changes to original Claude/Codex public source | Their existing support is not evidence of DeepSeek support |
 
-Native app UI automation is unavailable in the development session. CLI/Cordis and fixture checks do not substitute for the actual Desktop UI with its backend. Do not report the marketplace flow as passed until that test is performed.
+The account page, user-controlled browser authorization and WB search were exercised through supported Windows UI automation in the actual Desktop application with its backend. CLI/Cordis and fixture checks do not substitute for the remaining Ozon/XLSX acceptance tests. No login code or account credentials are included in the published evidence.
 
-Final automated suite: 28 tests passed. Public distribution review found no private paths, credentials or private Git history in the packaged files. Shared Harness dependencies are pinned to 0.2.0-rc.2; other versions must be tested before changing that compatibility declaration.
+The automated suite covers native account RPC, background OAuth, callback cancellation and deadline, failed login, later MCP mounting, process loss, Client API Gateway startup, and all original transport/authorization checks. Shared Harness dependencies are pinned to 0.2.0-rc.2; other versions must be tested before changing that compatibility declaration.
+
+Release 0.2.0 verification: 52 tests passed; its archive installed through the bundled Desktop CLI into an isolated profile without a version exemption. The browser client ships prebuilt and needs no install-time compilation.
+
+## Accepted residual
+
+Cancellation during remote MCP bootstrap after successful OAuth can wait for the SDK's bounded request timeout. The OAuth phase itself is cancellable. Slow-bootstrap cancellation was identified from code; its latency has not been reproduced through the actual Desktop/backend. Keep this as a verification gap rather than claiming instantaneous cancellation at every stage.
 
 The Claude compatibility hook bridge ignores updatedInput. This bundle instead owns MCP registration and performs the trusted argument injection inside the local tool body, after native policy execution and before the SDK call. A remote authorization becomes eligible only after the native committed result observer.
 

@@ -1,24 +1,32 @@
 {
   "name": "dsh-e-comet",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Experimental e-Comet seller analytics and local Wildberries/Ozon integration for DeepSeek Harness.",
   "type": "module",
   "main": "index.mjs",
   "bin": { "dsh-e-comet-connect": "./src/connect.mjs" },
-  "exports": { ".": "./index.mjs" },
+  "exports": { ".": "./index.mjs", "./client": "./client.js" },
   "license": "Apache-2.0",
   "repository": { "type": "git", "url": "https://github.com/ShadyAV/e-comet-deepseek-harness.git" },
   "engines": { "node": ">=22" },
-  "files": ["index.mjs", "cordis.patch.yml", "src/", "skills/", "vendor/", "LICENSE", "NOTICE", "README.md", "COMPATIBILITY.md"],
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "files": ["index.mjs", "client.js", "cordis.patch.yml", "src/", "skills/", "vendor/", "LICENSE", "NOTICE", "README.md", "COMPATIBILITY.md"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-plugin-manager"]
+    }
+  },
   "scripts": { "test": "node --test tests/*.test.mjs", "connect": "node src/connect.mjs" },
   "dependencies": { "@modelcontextprotocol/sdk": "1.32.0" },
-  "peerDependencies": { "@deepseek-ai/dsh-skill-filesystem": "0.2.0-rc.2" },
+  "peerDependencies": { "@deepseek-ai/dsh-skill-filesystem": "0.2.0-rc.2", "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2" },
   "devDependencies": {
     "@deepseek-ai/dsh-skill-filesystem": "0.2.0-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
     "@deepseek-ai/dsh-skill": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2",
     "@deepseek-ai/dsh": "0.2.0-rc.2"
   }
 }

@@ -4,7 +4,8 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
-import { ListToolsRequestSchema, ListToolsResultSchema, CallToolRequestSchema, CallToolResultSchema, ListResourcesRequestSchema, ListResourcesResultSchema, ReadResourceRequestSchema, ReadResourceResultSchema, ListResourceTemplatesRequestSchema, ListResourceTemplatesResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { InvalidGrantError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import { McpError, ListToolsRequestSchema, ListToolsResultSchema, CallToolRequestSchema, CallToolResultSchema, ListResourcesRequestSchema, ListResourcesResultSchema, ReadResourceRequestSchema, ReadResourceResultSchema, ListResourceTemplatesRequestSchema, ListResourceTemplatesResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { FileOAuthProvider, REMOTE_URL, createTrustedFetch, LoginRequiredError } from './oauth.mjs';
 export { LoginRequiredError } from './oauth.mjs';
 
@@ -13,7 +14,7 @@ export const LONG_TOOL_TIMEOUT_MS = 7_200_000;
 const DISCOVERY_TIMEOUT_MS = 60_000;
 
 export async function connectRemote(provider, { fetchImpl = createTrustedFetch() } = {}) {
-  const client = new Client({ name: 'e-comet-deepseek-harness', version: '0.1.0' }, { capabilities: {} });
+  const client = new Client({ name: 'e-comet-deepseek-harness', version: '0.2.0' }, { capabilities: {} });
   const transport = new StreamableHTTPClientTransport(new URL(REMOTE_URL), { authProvider: provider, fetch: fetchImpl });
   try { await client.connect(transport); return client; }
   catch (error) { await client.close().catch(() => {}); if (error instanceof UnauthorizedError || error instanceof LoginRequiredError) throw new LoginRequiredError(); throw error; }
@@ -24,7 +25,7 @@ export async function createRemoteProxy(provider = new FileOAuthProvider(), { cl
   if (!(await provider.tokens())?.access_token) throw new LoginRequiredError();
   const client = suppliedClient ?? await connectRemote(provider);
   const capabilities = client.getServerCapabilities() ?? {};
-  const server = new Server({ name: 'e-comet-remote-proxy', version: '0.1.0' }, {
+  const server = new Server({ name: 'e-comet-remote-proxy', version: '0.2.0' }, {
     capabilities: { ...(capabilities.tools ? { tools: {} } : {}), ...(capabilities.resources ? { resources: {} } : {}) },
     instructions: client.getInstructions(),
   });
@@ -33,12 +34,21 @@ export async function createRemoteProxy(provider = new FileOAuthProvider(), { cl
     ...(capabilities.resources ? [[ListResourcesRequestSchema, ListResourcesResultSchema], [ReadResourceRequestSchema, ReadResourceResultSchema], [ListResourceTemplatesRequestSchema, ListResourceTemplatesResultSchema]] : []),
   ];
   for (const [requestSchema, resultSchema] of pairs) {
-    server.setRequestHandler(requestSchema, (request, extra) => client.request(request, resultSchema, {
-      signal: extra.signal,
-      timeout: request.method === 'tools/call' ? LONG_TOOL_TIMEOUT_MS : DISCOVERY_TIMEOUT_MS,
-      maxTotalTimeout: request.method === 'tools/call' ? LONG_TOOL_TIMEOUT_MS : DISCOVERY_TIMEOUT_MS,
-      resetTimeoutOnProgress: true,
-    }));
+    server.setRequestHandler(requestSchema, async (request, extra) => {
+      try {
+        return await client.request(request, resultSchema, {
+          signal: extra.signal,
+          timeout: request.method === 'tools/call' ? LONG_TOOL_TIMEOUT_MS : DISCOVERY_TIMEOUT_MS,
+          maxTotalTimeout: request.method === 'tools/call' ? LONG_TOOL_TIMEOUT_MS : DISCOVERY_TIMEOUT_MS,
+          resetTimeoutOnProgress: true,
+        });
+      } catch (error) {
+        if (error instanceof LoginRequiredError || error instanceof UnauthorizedError || error instanceof InvalidGrantError) {
+          throw new McpError(-32001, 'Open e-Comet in the app sidebar and reconnect your account.', { code: 'ECOMET_LOGIN_REQUIRED' });
+        }
+        throw error;
+      }
+    });
   }
   server.onclose = () => { void client.close(); };
   return { server, client };
@@ -52,5 +62,5 @@ export async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch(error => { console.error(error instanceof LoginRequiredError ? error.message : 'e-Comet remote connection failed. Run dsh-e-comet-connect or npm run connect from the repository to verify login and connectivity.'); process.exitCode = 1; });
+  main().catch(error => { console.error(error instanceof LoginRequiredError ? error.message : 'e-Comet remote connection failed. Open e-Comet in the app sidebar to check your account connection.'); process.exitCode = 1; });
 }
