@@ -157,4 +157,3 @@ test('reopened pending login recovers the safe browser link from native status',
   assert.equal(controller.getSnapshot().authorizationUrl, 'https://e-comet.io/authorize?state=recovered');
   controller.dispose();
 });
-
